@@ -21,10 +21,12 @@ public struct CoreDataBatchError<T>: Error {
     /// The underlying error.
     public let error: CoreDataError
 
+    @inlinable
     public var localizedDescription: String {
         error.localizedDescription
     }
 
+    @inlinable
     public init(item: T, error: CoreDataError) {
         self.item = item
         self.error = error

@@ -15,6 +15,7 @@ extension CoreDataRepository {
     ///
     /// The caller is responsible for saving the contexts and cleaning up if needed.
     /// All this  method provides is the contexts and mapping `Error` into ``CoreDataError``.
+    @inlinable
     public func custom<T>(
         schedule: NSManagedObjectContext.ScheduledTaskType = .enqueued,
         block: @escaping (
