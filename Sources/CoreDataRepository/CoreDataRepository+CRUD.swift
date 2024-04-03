@@ -104,7 +104,7 @@ extension CoreDataRepository {
         let readContext = context.childContext()
         return AsyncStream { continuation in
             let provider: ReadSubscription<Model>
-            switch Self.getObjectId(fromUrl: url, context: readContext) {
+            switch readContext.objectId(from: url) {
             case let .success(objectId):
                 provider = ReadSubscription<Model>(
                     objectId: objectId,
@@ -132,7 +132,7 @@ extension CoreDataRepository {
         let readContext = context.childContext()
         return AsyncThrowingStream { continuation in
             let provider: ReadThrowingSubscription<Model>
-            switch Self.getObjectId(fromUrl: url, context: readContext) {
+            switch readContext.objectId(from: url) {
             case let .success(objectId):
                 provider = ReadThrowingSubscription<Model>(
                     objectId: objectId,
@@ -150,16 +150,5 @@ extension CoreDataRepository {
                 provider.cancel()
             }
         }
-    }
-
-    @usableFromInline
-    static func getObjectId(
-        fromUrl url: URL,
-        context: NSManagedObjectContext
-    ) -> Result<NSManagedObjectID, CoreDataError> {
-        guard let objectId = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) else {
-            return Result.failure(.failedToGetObjectIdFromUrl(url))
-        }
-        return .success(objectId)
     }
 }

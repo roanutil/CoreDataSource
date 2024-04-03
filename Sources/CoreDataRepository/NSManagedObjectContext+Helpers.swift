@@ -1,4 +1,4 @@
-// NSManagedObjectContext+CRUDHelpers.swift
+// NSManagedObjectContext+Helpers.swift
 // CoreDataRepository
 //
 //
@@ -11,8 +11,8 @@ import Foundation
 
 extension NSManagedObjectContext {
     /// Helper function for getting the ``NSManagedObjectID`` from an ``URL``
-    @usableFromInline
-    func objectId(from url: URL) -> Result<NSManagedObjectID, CoreDataError> {
+	@inlinable
+    public func objectId(from url: URL) -> Result<NSManagedObjectID, CoreDataError> {
         guard let objectId = persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) else {
             return .failure(CoreDataError.failedToGetObjectIdFromUrl(url))
         }
@@ -20,8 +20,8 @@ extension NSManagedObjectContext {
     }
 
     /// Helper function for checking that a managed object is not deleted in the store
-    @usableFromInline
-    func notDeletedObject(for id: NSManagedObjectID) throws -> NSManagedObject {
+	@inlinable
+    public func notDeletedObject(for id: NSManagedObjectID) throws -> NSManagedObject {
         let object: NSManagedObject = try existingObject(with: id)
         guard !object.isDeleted else {
             throw CoreDataError.fetchedObjectIsFlaggedAsDeleted
