@@ -29,6 +29,7 @@ public final class CoreDataRepository {
     /// to be performed in.
     public let context: NSManagedObjectContext
 
+    @inlinable
     public init(context: NSManagedObjectContext) {
         self.context = context
     }

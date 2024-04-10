@@ -108,6 +108,7 @@ public enum CoreDataError: Error, Hashable, Sendable {
 extension CoreDataError: CustomNSError {
     public static let errorDomain: String = "CoreDataRepository"
 
+    @inlinable
     public var errorCode: Int {
         switch self {
         case .failedToGetObjectIdFromUrl:
@@ -133,6 +134,7 @@ extension CoreDataError: CustomNSError {
 
     public static let urlUserInfoKey: String = "ObjectIdUrl"
 
+    @inlinable
     public var errorUserInfo: [String: Any] {
         switch self {
         case let .failedToGetObjectIdFromUrl(url):
