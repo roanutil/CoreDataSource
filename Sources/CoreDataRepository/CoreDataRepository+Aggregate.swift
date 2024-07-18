@@ -12,6 +12,38 @@ import Foundation
 // swiftlint:disable file_length
 
 extension CoreDataRepository {
+    public enum AggregateFunction: String {
+        case count
+        case sum
+        case average
+        case min
+        case max
+    }
+
+    @inlinable
+    public func aggregate<Value: Numeric>(
+        function: AggregateFunction,
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil,
+        as valueType: Value.Type
+    ) async -> Result<Value, CoreDataError> {
+        switch function {
+        case .count:
+            return await count(predicate: predicate, entityDesc: entityDesc, as: valueType)
+        default:
+            return await Self.send(
+                function: .sum,
+                context: context,
+                predicate: predicate,
+                entityDesc: entityDesc,
+                attributeDesc: attributeDesc,
+                groupBy: groupBy
+            )
+        }
+    }
+
     // MARK: Count
 
     /// Get the count or quantity of managed object instances that satisfy the predicate.
@@ -374,15 +406,6 @@ extension CoreDataRepository {
     }
 
     // MARK: Internals
-
-    @usableFromInline
-    enum AggregateFunction: String {
-        case count
-        case sum
-        case average
-        case min
-        case max
-    }
 
     private static func aggregate<Value: Numeric>(
         context: NSManagedObjectContext,
