@@ -51,6 +51,25 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         }
     }
 
+    func testCountSuccess_UnifiedEndpoint() async throws {
+        let result = try await repository().aggregate(
+            function: .count,
+            predicate: NSPredicate(value: true),
+            entityDesc: ManagedMovie.entity(),
+            attributeDesc: XCTUnwrap(
+                ManagedMovie.entity().attributesByName.values
+                    .first(where: { $0.name == "boxOffice" })
+            ),
+            as: Double.self
+        )
+        switch result {
+        case let .success(value):
+            XCTAssertEqual(value, 5, "Result value (count) should equal number of movies.")
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
     func testCountSubscription() async throws {
         let task = Task {
             var resultCount = 0
@@ -112,6 +131,25 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
 
     func testSumSuccess() async throws {
         let result = try await repository().sum(
+            predicate: NSPredicate(value: true),
+            entityDesc: ManagedMovie.entity(),
+            attributeDesc: XCTUnwrap(
+                ManagedMovie.entity().attributesByName.values
+                    .first(where: { $0.name == "boxOffice" })
+            ),
+            as: Decimal.self
+        )
+        switch result {
+        case let .success(value):
+            XCTAssertEqual(value, 150, "Result value (sum) should equal number of movies.")
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
+    func testSumSuccess_UnifiedEndpoint() async throws {
+        let result = try await repository().aggregate(
+            function: .sum,
             predicate: NSPredicate(value: true),
             entityDesc: ManagedMovie.entity(),
             attributeDesc: XCTUnwrap(
@@ -199,6 +237,29 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
 
     func testAverageSuccess() async throws {
         let result = try await repository().average(
+            predicate: NSPredicate(value: true),
+            entityDesc: ManagedMovie.entity(),
+            attributeDesc: XCTUnwrap(
+                ManagedMovie.entity().attributesByName.values
+                    .first(where: { $0.name == "boxOffice" })
+            ),
+            as: Decimal.self
+        )
+        switch result {
+        case let .success(value):
+            XCTAssertEqual(
+                value,
+                30,
+                "Result value should equal average of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
+    func testAverageSuccess_UnifiedEndpoint() async throws {
+        let result = try await repository().aggregate(
+            function: .average,
             predicate: NSPredicate(value: true),
             entityDesc: ManagedMovie.entity(),
             attributeDesc: XCTUnwrap(
@@ -318,6 +379,29 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         }
     }
 
+    func testMinSuccess_UnifiedEndpoint() async throws {
+        let result = try await repository().aggregate(
+            function: .min,
+            predicate: NSPredicate(value: true),
+            entityDesc: ManagedMovie.entity(),
+            attributeDesc: XCTUnwrap(
+                ManagedMovie.entity().attributesByName.values
+                    .first(where: { $0.name == "boxOffice" })
+            ),
+            as: Decimal.self
+        )
+        switch result {
+        case let .success(value):
+            XCTAssertEqual(
+                value,
+                10,
+                "Result value should equal min of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
     func testMinSubscription() async throws {
         let task = Task {
             var resultCount = 0
@@ -389,6 +473,29 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
 
     func testMaxSuccess() async throws {
         let result = try await repository().max(
+            predicate: NSPredicate(value: true),
+            entityDesc: ManagedMovie.entity(),
+            attributeDesc: XCTUnwrap(
+                ManagedMovie.entity().attributesByName.values
+                    .first(where: { $0.name == "boxOffice" })
+            ),
+            as: Decimal.self
+        )
+        switch result {
+        case let .success(value):
+            XCTAssertEqual(
+                value,
+                50,
+                "Result value should equal max of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
+    func testMaxSuccess_UnifiedEndpoint() async throws {
+        let result = try await repository().aggregate(
+            function: .max,
             predicate: NSPredicate(value: true),
             entityDesc: ManagedMovie.entity(),
             attributeDesc: XCTUnwrap(
