@@ -34,7 +34,7 @@ extension CoreDataRepository {
             return await count(predicate: predicate, entityDesc: entityDesc, as: valueType)
         default:
             return await Self.send(
-                function: .sum,
+                function: function,
                 context: context,
                 predicate: predicate,
                 entityDesc: entityDesc,
