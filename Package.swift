@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:5.9
 
 import Foundation
 import PackageDescription
@@ -6,14 +6,7 @@ import PackageDescription
 let package = Package(
     name: "CoreDataRepository",
     defaultLocalization: "en",
-    platforms: [
-        .iOS(.v16),
-        .macOS(.v13),
-        .tvOS(.v16),
-        .watchOS(.v9),
-        .macCatalyst(.v16),
-        .visionOS(.v1),
-    ],
+    platforms: .shared,
     products: [
         .library(
             name: "CoreDataRepository",
@@ -51,6 +44,30 @@ let package = Package(
     ]
 )
 
+extension [SupportedPlatform] {
+    static let shared: Self = {
+        if ProcessInfo.benchmarkingEnabled {
+            [
+                .iOS(.v15),
+                .macOS(.v12),
+                .tvOS(.v15),
+                .watchOS(.v8),
+                .macCatalyst(.v15),
+                .visionOS(.v1),
+            ]
+        } else {
+            [
+                .iOS(.v15),
+                .macOS(.v13),
+                .tvOS(.v15),
+                .watchOS(.v8),
+                .macCatalyst(.v15),
+                .visionOS(.v1),
+            ]
+        }
+    }()
+}
+
 extension [SwiftSetting] {
     static let swiftSix: Self = [
         .enableUpcomingFeature("BareSlashRegexLiterals"),
@@ -63,7 +80,7 @@ extension [SwiftSetting] {
     ]
 }
 
-if ["YES", "TRUE"].contains((ProcessInfo.processInfo.environment["BENCHMARKS"])?.uppercased()) {
+if ProcessInfo.benchmarkingEnabled {
     package.dependencies += [
         .package(
             url: "https://github.com/ordo-one/package-benchmark.git",
@@ -86,4 +103,9 @@ if ["YES", "TRUE"].contains((ProcessInfo.processInfo.environment["BENCHMARKS"])?
             ]
         ),
     ]
+}
+
+extension ProcessInfo {
+    static let benchmarkingEnabled: Bool = ["YES", "TRUE"]
+        .contains((ProcessInfo.processInfo.environment["BENCHMARKS"])?.uppercased())
 }
