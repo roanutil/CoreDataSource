@@ -1,7 +1,7 @@
 // swift-tools-version:5.10
 
-import PackageDescription
 import Foundation
+import PackageDescription
 
 let package = Package(
     name: "CoreDataRepository",
@@ -70,7 +70,7 @@ if ["YES", "TRUE"].contains((ProcessInfo.processInfo.environment["BENCHMARKS"])?
             from: "1.23.5"
         ),
     ]
-    
+
     // Benchmark of coredata-repository-benchmarks
     package.targets += [
         .executableTarget(
