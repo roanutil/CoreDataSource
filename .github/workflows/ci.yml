@@ -24,8 +24,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-13
-            xcode: "15.2" # Swift 5.9.2
           - os: macos-14
             xcode: "15.3" # Swift 5.10
     runs-on: ${{ matrix.os }}
