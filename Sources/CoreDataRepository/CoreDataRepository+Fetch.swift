@@ -12,7 +12,7 @@ import Foundation
 extension CoreDataRepository {
     /// Fetch items from the store with a ``NSFetchRequest``.
     @inlinable
-    public func fetch<Model: UnmanagedReadOnlyModel>(
+    public func fetch<Model: FetchableUnmanagedModel>(
         _ request: NSFetchRequest<Model.ManagedModel>,
         as _: Model.Type
     ) async -> Result<[Model], CoreDataError> {
@@ -23,7 +23,7 @@ extension CoreDataRepository {
 
     /// Fetch items from the store with a ``NSFetchRequest`` and receive updates as the store changes.
     @inlinable
-    public func fetchSubscription<Model: UnmanagedReadOnlyModel>(
+    public func fetchSubscription<Model: FetchableUnmanagedModel>(
         _ request: NSFetchRequest<Model.ManagedModel>,
         of _: Model.Type
     ) -> AsyncStream<Result<[Model], CoreDataError>> {
@@ -42,7 +42,7 @@ extension CoreDataRepository {
 
     /// Fetch items from the store with a ``NSFetchRequest`` and receive updates as the store changes.
     @inlinable
-    public func fetchThrowingSubscription<Model: UnmanagedReadOnlyModel>(
+    public func fetchThrowingSubscription<Model: FetchableUnmanagedModel>(
         _ request: NSFetchRequest<Model.ManagedModel>,
         of _: Model.Type
     ) -> AsyncThrowingStream<[Model], Error> {

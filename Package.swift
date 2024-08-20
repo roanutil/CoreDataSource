@@ -1,4 +1,4 @@
-// swift-tools-version:5.8
+// swift-tools-version:5.10
 
 import PackageDescription
 
@@ -6,11 +6,12 @@ let package = Package(
     name: "CoreDataRepository",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v12),
-        .tvOS(.v15),
-        .watchOS(.v8),
-        .macCatalyst(.v15),
+        .iOS(.v16),
+        .macOS(.v13),
+        .tvOS(.v16),
+        .watchOS(.v9),
+        .macCatalyst(.v16),
+        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -19,6 +20,10 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/ordo-one/package-benchmark.git",
+            from: "1.23.5"
+        ),
         .package(
             url: "https://github.com/pointfreeco/swift-custom-dump.git",
             from: "1.0.0"
@@ -35,6 +40,14 @@ let package = Package(
             dependencies: [
                 "CoreDataRepository",
                 .product(name: "CustomDump", package: "swift-custom-dump"),
+                "Internal",
+            ],
+            swiftSettings: .swiftSix
+        ),
+        .target(
+            name: "Internal",
+            dependencies: [
+                "CoreDataRepository",
             ],
             swiftSettings: .swiftSix
         ),
@@ -52,3 +65,19 @@ extension [SwiftSetting] {
         .enableExperimentalFeature("StrictConcurrency"),
     ]
 }
+
+// Benchmark of coredata-repository-benchmarks
+package.targets += [
+    .executableTarget(
+        name: "coredata-repository-benchmarks",
+        dependencies: [
+            .product(name: "Benchmark", package: "package-benchmark"),
+            "CoreDataRepository",
+            "Internal",
+        ],
+        path: "Benchmarks/coredata-repository-benchmarks",
+        plugins: [
+            .plugin(name: "BenchmarkPlugin", package: "package-benchmark"),
+        ]
+    ),
+]

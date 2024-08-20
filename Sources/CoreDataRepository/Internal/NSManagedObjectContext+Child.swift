@@ -24,8 +24,28 @@ extension NSManagedObjectContext {
             return .failure(error)
         } catch let error as CocoaError {
             return .failure(.cocoa(error))
-        } catch let error as NSError {
-            return .failure(.unknown(error))
+        } catch {
+            return .failure(.unknown(error as NSError))
+        }
+        return .success(output)
+    }
+
+    /// Helper function for error mapping a throwing operation in a temporary context
+    @usableFromInline
+    func performInChildAndWait<Output>(
+        schedule _: NSManagedObjectContext.ScheduledTaskType = .immediate,
+        _ block: @escaping (NSManagedObjectContext) throws -> Output
+    ) -> Result<Output, CoreDataError> {
+        let child = childContext()
+        let output: Output
+        do {
+            output = try child.performAndWait { try block(child) }
+        } catch let error as CoreDataError {
+            return .failure(error)
+        } catch let error as CocoaError {
+            return .failure(.cocoa(error))
+        } catch {
+            return .failure(.unknown(error as NSError))
         }
         return .success(output)
     }

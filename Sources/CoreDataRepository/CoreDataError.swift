@@ -11,16 +11,18 @@ import Foundation
 
 /// An error that models all the possible error conditions of CoreDataRepository.
 ///
-/// CoreDataError also conforms to CustomNSError so that it cleanly casts to NSError
+/// ``CoreDataError`` also conforms to `CustomNSError` so that it cleanly casts to `NSError`
 public enum CoreDataError: Error, Hashable, Sendable {
     /// UnmanagedModels store the ``CoreData.NSManagedObjectID`` of their respective RepositoryManagedModels as a URL.
     /// This URL
     /// must be mapped back into a ``NSManagedObjectID`` for most transactions. If it fails, this error is returned.
     case failedToGetObjectIdFromUrl(URL)
 
-    /// For some aggregate functions, a NSAttributeDescription is required so that a NSFetchRequest can be constructed
+    /// For some aggregate functions, a `NSAttributeDescription` is required so that a `NSFetchRequest` can be
+    /// constructed
     /// against the correct property.
-    /// If the NSAttributeDescription is not for the correct or expected NSEntityDescription, this error is returned.
+    /// If the `NSAttributeDescription` is not for the correct or expected `NSEntityDescription`, this error is
+    /// returned.
     case propertyDoesNotMatchEntity
 
     /// CoreData may return a value of a related type to what is actually needed. If casting the value CoreData returns
@@ -31,22 +33,30 @@ public enum CoreDataError: Error, Hashable, Sendable {
     /// is returned.
     case fetchedObjectIsFlaggedAsDeleted
 
-    /// If CoreData throws a CocoaError, it is embedded here.
+    /// If CoreData throws a `CocoaError`, it is embedded here.
     case cocoa(CocoaError)
 
-    /// If the type of an error is unknown, it is cast to NSError and embedded here.
+    /// If the type of an error is unknown, it is cast to `NSError` and embedded here.
     case unknown(NSError)
 
-    /// If a NSEntityDescription is malformed by not having a name, this error is returned.
+    /// If a `NSEntityDescription` is malformed by not having a name, this error is returned.
     case noEntityNameFound
 
-    /// The count aggregate function requires at least one NSAttributeDescription on the NSEntityDescription. If there
+    /// The count aggregate function requires at least one `NSAttributeDescription` on the `NSEntityDescription`. If
+    /// there
     /// is none, this error is returned.
     case atLeastOneAttributeDescRequired
 
-    /// If an UnmanagedModel is used in a transaction where it is expected to already be persisted but has no URL
+    /// If a ``ManagedIdUrlReferencable`` value is used in a transaction where it is expected to already be persisted
+    /// but has no `URL`
     /// representing the ``NSManagedObjectID``, this error is returned.
     case noUrlOnItemToMapToObjectId
+
+    /// If a ``ManagedIdReferencable`` value is used in a transaction where it is expected to already be persisted but
+    /// has no `NSManagedObjectID`, this error is returned.
+    case noObjectIdOnItem
+
+    case noMatchFoundWhenReadingItem
 
     public var localizedDescription: String {
         switch self {
@@ -96,10 +106,23 @@ public enum CoreDataError: Error, Hashable, Sendable {
             )
         case .noUrlOnItemToMapToObjectId:
             return NSLocalizedString(
-                "No object ID URL found on the unmanaged model for an operation against an existing managed object.",
+                "No object ID URL found on the model for an operation against an existing managed object.",
                 bundle: .module,
-                comment: "Error for performing an operation against an existing NSManagedObject but the UnmanagedModel "
-                    + "instance has no ManagedRepoUrl for looking up the NSManagedOjbectID."
+                comment: "Error for performing an operation against an existing NSManagedObject but the "
+                    + "ManagedIdUrlReferencable instance has no managedIdUrl for looking up the NSManagedOjbectID."
+            )
+        case .noObjectIdOnItem:
+            return NSLocalizedString(
+                "No object ID found on the model for an operation against an existing managed object.",
+                bundle: .module,
+                comment: "Error for performing an operation against an existing NSManagedObject but the "
+                    + "ManagedIdReferencable instance has no managedId."
+            )
+        case .noMatchFoundWhenReadingItem:
+            return NSLocalizedString(
+                "No match found when attempting to read an instance from CoreData.",
+                bundle: .module,
+                comment: "Error for reading an instance from CoreData but no instance was found."
             )
         }
     }
@@ -129,6 +152,10 @@ extension CoreDataError: CustomNSError {
             return 8
         case .noUrlOnItemToMapToObjectId:
             return 9
+        case .noObjectIdOnItem:
+            return 10
+        case .noMatchFoundWhenReadingItem:
+            return 11
         }
     }
 
@@ -154,6 +181,10 @@ extension CoreDataError: CustomNSError {
         case .atLeastOneAttributeDescRequired:
             return [:]
         case .noUrlOnItemToMapToObjectId:
+            return [:]
+        case .noObjectIdOnItem:
+            return [:]
+        case .noMatchFoundWhenReadingItem:
             return [:]
         }
     }

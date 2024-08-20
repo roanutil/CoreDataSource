@@ -1,11 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "No match found when attempting to read an instance from CoreData." : {
+      "comment" : "Error for reading an instance from CoreData but no instance was found."
+    },
     "No NSManagedObjectID found that correlates to the provided URL." : {
       "comment" : "Error for when an ObjectID can't be found for the provided URL."
     },
-    "No object ID URL found on the unmanaged model for an operation against an existing managed object." : {
-      "comment" : "Error for performing an operation against an existing NSManagedObject but the UnmanagedModel instance has no ManagedRepoUrl for looking up the NSManagedOjbectID."
+    "No object ID found on the model for an operation against an existing managed object." : {
+      "comment" : "Error for performing an operation against an existing NSManagedObject but the ManagedIdReferencable instance has no managedId."
+    },
+    "No object ID URL found on the model for an operation against an existing managed object." : {
+      "comment" : "Error for performing an operation against an existing NSManagedObject but the ManagedIdUrlReferencable instance has no managedIdUrl for looking up the NSManagedOjbectID."
     },
     "The managed object entity description does not have a name." : {
       "comment" : "Error for when the NSEntityDescription does not have a name."
