@@ -1,6 +1,7 @@
 // swift-tools-version:5.10
 
 import PackageDescription
+import Foundation
 
 let package = Package(
     name: "CoreDataRepository",
@@ -20,10 +21,6 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/ordo-one/package-benchmark.git",
-            from: "1.23.5"
-        ),
         .package(
             url: "https://github.com/pointfreeco/swift-custom-dump.git",
             from: "1.0.0"
@@ -66,18 +63,27 @@ extension [SwiftSetting] {
     ]
 }
 
-// Benchmark of coredata-repository-benchmarks
-package.targets += [
-    .executableTarget(
-        name: "coredata-repository-benchmarks",
-        dependencies: [
-            .product(name: "Benchmark", package: "package-benchmark"),
-            "CoreDataRepository",
-            "Internal",
-        ],
-        path: "Benchmarks/coredata-repository-benchmarks",
-        plugins: [
-            .plugin(name: "BenchmarkPlugin", package: "package-benchmark"),
-        ]
-    ),
-]
+if ["YES", "TRUE"].contains((ProcessInfo.processInfo.environment["BENCHMARKS"])?.uppercased()) {
+    package.dependencies += [
+        .package(
+            url: "https://github.com/ordo-one/package-benchmark.git",
+            from: "1.23.5"
+        ),
+    ]
+    
+    // Benchmark of coredata-repository-benchmarks
+    package.targets += [
+        .executableTarget(
+            name: "coredata-repository-benchmarks",
+            dependencies: [
+                .product(name: "Benchmark", package: "package-benchmark"),
+                "CoreDataRepository",
+                "Internal",
+            ],
+            path: "Benchmarks/coredata-repository-benchmarks",
+            plugins: [
+                .plugin(name: "BenchmarkPlugin", package: "package-benchmark"),
+            ]
+        ),
+    ]
+}
