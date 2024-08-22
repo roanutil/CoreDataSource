@@ -39,6 +39,44 @@ package struct FetchableModel_IntId: Hashable, Sendable {
         self.string = string
         self.uuid = uuid
     }
+
+    @inlinable
+    package static func defaulted(
+        bool: Bool = true,
+        date: Date = Date(),
+        decimal: Decimal = 0,
+        double: Double = 0,
+        float: Float = 0,
+        int: Int = 0,
+        string: String = "",
+        uuid: UUID = UUID()
+    ) -> Self {
+        Self(
+            bool: bool,
+            date: date,
+            decimal: decimal,
+            double: double,
+            float: float,
+            int: int,
+            string: string,
+            uuid: uuid
+        )
+    }
+
+    @inlinable
+    package static func seeded(_ seed: Int) -> Self {
+        let _uuid = UUID(uniform: seed.description.first!)
+        return Self(
+            bool: seed.isMultiple(of: 2) ? true : false,
+            date: Date(timeIntervalSinceReferenceDate: TimeInterval(seed)),
+            decimal: Decimal(seed),
+            double: Double(seed),
+            float: Float(seed),
+            int: seed,
+            string: seed.description,
+            uuid: _uuid
+        )
+    }
 }
 
 extension FetchableModel_IntId: FetchableUnmanagedModel {
