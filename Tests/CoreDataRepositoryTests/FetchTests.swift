@@ -1,4 +1,4 @@
-// FetchRepositoryTests.swift
+// FetchTests.swift
 // CoreDataRepository
 //
 //
@@ -8,43 +8,55 @@
 
 import CoreData
 import CoreDataRepository
+import Internal
 import XCTest
 
 final class FetchRepositoryTests: CoreDataXCTestCase {
-    let fetchRequest: NSFetchRequest<ManagedMovie> = {
-        let request = Movie.managedFetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \ManagedMovie.title, ascending: true)]
+    let fetchRequest: NSFetchRequest<ManagedModel_UuidId> = {
+        let request = FetchableModel_UuidId.managedFetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ManagedModel_UuidId.int, ascending: true)]
         return request
     }()
 
-    let movies = [
-        Movie(id: UUID(), title: "A", releaseDate: Date()),
-        Movie(id: UUID(), title: "B", releaseDate: Date()),
-        Movie(id: UUID(), title: "C", releaseDate: Date()),
-        Movie(id: UUID(), title: "D", releaseDate: Date()),
-        Movie(id: UUID(), title: "E", releaseDate: Date()),
+    let values = [
+        FetchableModel_UuidId.seeded(1),
+        FetchableModel_UuidId.seeded(2),
+        FetchableModel_UuidId.seeded(3),
+        FetchableModel_UuidId.seeded(4),
+        FetchableModel_UuidId.seeded(5),
     ]
-    var expectedMovies = [Movie]()
+    var expectedValues = [FetchableModel_UuidId]()
+    var objectIds = [NSManagedObjectID]()
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        expectedMovies = try repositoryContext().performAndWait {
-            _ = try self.movies.map { try $0.asManagedModel(in: repositoryContext()) }
+        let (_expectedValues, _objectIds) = try repositoryContext().performAndWait {
+            let managedMovies = try self.values
+                .map {
+                    try ManagedIdUrlModel_UuidId(fetchable: $0)
+                        .asManagedModel(in: repositoryContext())
+                }
             try self.repositoryContext().save()
-            return try self.repositoryContext().fetch(fetchRequest).map(Movie.init(managed:))
+            return try (
+                self.repositoryContext().fetch(fetchRequest).map(FetchableModel_UuidId.init(managed:)),
+                managedMovies.map(\.objectID)
+            )
         }
+        expectedValues = _expectedValues
+        objectIds = _objectIds
     }
 
     override func tearDownWithError() throws {
         try super.tearDownWithError()
-        expectedMovies = []
+        expectedValues = []
+        objectIds = []
     }
 
     func testFetchSuccess() async throws {
-        switch try await repository().fetch(fetchRequest, as: Movie.self) {
-        case let .success(movies):
-            XCTAssertEqual(movies.count, 5, "Result items count should match expectation")
-            XCTAssertEqual(movies, expectedMovies, "Result items should match expectations")
+        switch try await repository().fetch(fetchRequest, as: FetchableModel_UuidId.self) {
+        case let .success(values):
+            XCTAssertEqual(values.count, 5, "Result items count should match expectation")
+            XCTAssertEqual(values, expectedValues, "Result items should match expectations")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -54,21 +66,19 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
         let task = Task {
             var resultCount = 0
             let stream = try repository()
-                .fetchSubscription(fetchRequest, of: Movie.self)
+                .fetchSubscription(fetchRequest, of: FetchableModel_UuidId.self)
             for await _items in stream {
                 let items = try _items.get()
                 resultCount += 1
                 switch resultCount {
                 case 1:
                     XCTAssertEqual(items.count, 5, "Result items count should match expectation")
-                    XCTAssertEqual(items, self.expectedMovies, "Result items should match expectations")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    let _: Result<Void, CoreDataError> = try await crudRepository
-                        .delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(items, self.expectedValues, "Result items should match expectations")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
                     XCTAssertEqual(items.count, 4, "Result items count should match expectation")
-                    XCTAssertEqual(items, Array(self.expectedMovies[0 ... 3]), "Result items should match expectations")
+                    XCTAssertEqual(items, Array(self.expectedValues[0 ... 3]), "Result items should match expectations")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -84,20 +94,21 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
     func testFetchThrowingSubscriptionSuccess() async throws {
         let task = Task {
             var resultCount = 0
-            let stream = try repository().fetchThrowingSubscription(self.fetchRequest, of: Movie.self)
+            let stream = try repository().fetchThrowingSubscription(
+                self.fetchRequest,
+                of: FetchableModel_UuidId.self
+            )
             for try await items in stream {
                 resultCount += 1
                 switch resultCount {
                 case 1:
                     XCTAssertEqual(items.count, 5, "Result items count should match expectation")
-                    XCTAssertEqual(items, self.expectedMovies, "Result items should match expectations")
-                    let crudRepository = try CoreDataRepository(context: self.repositoryContext())
-                    let _: Result<Void, CoreDataError> = try await crudRepository
-                        .delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(items, self.expectedValues, "Result items should match expectations")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
                     XCTAssertEqual(items.count, 4, "Result items count should match expectation")
-                    XCTAssertEqual(items, Array(self.expectedMovies[0 ... 3]), "Result items should match expectations")
+                    XCTAssertEqual(items, Array(self.expectedValues[0 ... 3]), "Result items should match expectations")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")

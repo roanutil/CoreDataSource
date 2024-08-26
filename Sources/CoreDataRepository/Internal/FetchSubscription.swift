@@ -11,7 +11,7 @@ import Foundation
 
 /// Subscription provider that sends updates when a fetch request changes
 @usableFromInline
-final class FetchSubscription<Model: UnmanagedReadOnlyModel>: Subscription<
+final class FetchSubscription<Model: FetchableUnmanagedModel>: Subscription<
     [Model],
     Model.ManagedModel,
     Model.ManagedModel

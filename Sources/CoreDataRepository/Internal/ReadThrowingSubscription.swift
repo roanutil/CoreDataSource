@@ -11,7 +11,7 @@ import CoreData
 import Foundation
 
 @usableFromInline
-final class ReadThrowingSubscription<Model: UnmanagedReadOnlyModel> {
+final class ReadThrowingSubscription<Model: ReadableUnmanagedModel> {
     private let objectId: NSManagedObjectID
     private let context: NSManagedObjectContext
     private var cancellables: Set<AnyCancellable>

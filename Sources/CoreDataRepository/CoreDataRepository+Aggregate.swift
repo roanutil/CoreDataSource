@@ -13,11 +13,11 @@ import Foundation
 
 extension CoreDataRepository {
     public enum AggregateFunction: String {
-        case count
-        case sum
         case average
-        case min
+        case count
         case max
+        case min
+        case sum
     }
 
     @inlinable
@@ -41,6 +41,79 @@ extension CoreDataRepository {
                 attributeDesc: attributeDesc,
                 groupBy: groupBy
             )
+        }
+    }
+
+    // MARK: Average
+
+    /// Get the average of a managed object's numeric property for all instances that satisfy the predicate.
+    @inlinable
+    public func average<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil,
+        as _: Value.Type
+    ) async -> Result<Value, CoreDataError> {
+        await Self.send(
+            function: .average,
+            context: context,
+            predicate: predicate,
+            entityDesc: entityDesc,
+            attributeDesc: attributeDesc,
+            groupBy: groupBy
+        )
+    }
+
+    /// Subscribe to the average of a managed object's numeric property for all instances that satisfy the predicate.
+    @inlinable
+    public func averageSubscription<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil,
+        as _: Value.Type
+    ) -> AsyncStream<Result<Value, CoreDataError>> {
+        AsyncStream { continuation in
+            let subscription = AggregateSubscription(
+                function: .average,
+                context: context.childContext(),
+                predicate: predicate,
+                entityDesc: entityDesc,
+                attributeDesc: attributeDesc,
+                groupBy: groupBy,
+                continuation: continuation
+            )
+            continuation.onTermination = { _ in
+                subscription.cancel()
+            }
+            subscription.manualFetch()
+        }
+    }
+
+    /// Subscribe to the average of a managed object's numeric property for all instances that satisfy the predicate.
+    @inlinable
+    public func averageThrowingSubscription<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil,
+        as _: Value.Type
+    ) -> AsyncThrowingStream<Value, Error> {
+        AsyncThrowingStream { continuation in
+            let subscription = AggregateThrowingSubscription(
+                function: .average,
+                context: context.childContext(),
+                predicate: predicate,
+                entityDesc: entityDesc,
+                attributeDesc: attributeDesc,
+                groupBy: groupBy,
+                continuation: continuation
+            )
+            continuation.onTermination = { _ in
+                subscription.cancel()
+            }
+            subscription.manualFetch()
         }
     }
 
@@ -109,11 +182,11 @@ extension CoreDataRepository {
         }
     }
 
-    // MARK: Sum
+    // MARK: Max
 
-    /// Get the sum of a managed object's numeric property for all instances that satisfy the predicate.
+    /// Get the max or maximum of a managed object's numeric property for all instances that satisfy the predicate.
     @inlinable
-    public func sum<Value: Numeric>(
+    public func max<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -121,7 +194,7 @@ extension CoreDataRepository {
         as _: Value.Type
     ) async -> Result<Value, CoreDataError> {
         await Self.send(
-            function: .sum,
+            function: .max,
             context: context,
             predicate: predicate,
             entityDesc: entityDesc,
@@ -130,9 +203,10 @@ extension CoreDataRepository {
         )
     }
 
-    /// Subscribe to the sum of a managed object's numeric property for all instances that satisfy the predicate.
+    /// Subscribe to the max or maximum of a managed object's numeric property for all instances that satisfy the
+    /// predicate.
     @inlinable
-    public func sumSubscription<Value: Numeric>(
+    public func maxSubscription<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -141,7 +215,7 @@ extension CoreDataRepository {
     ) -> AsyncStream<Result<Value, CoreDataError>> {
         AsyncStream { continuation in
             let subscription = AggregateSubscription(
-                function: .sum,
+                function: .max,
                 context: context.childContext(),
                 predicate: predicate,
                 entityDesc: entityDesc,
@@ -156,9 +230,10 @@ extension CoreDataRepository {
         }
     }
 
-    /// Subscribe to the sum of a managed object's numeric property for all instances that satisfy the predicate.
+    /// Subscribe to the max or maximum of a managed object's numeric property for all instances that satisfy the
+    /// predicate.
     @inlinable
-    public func sumThrowingSubscription<Value: Numeric>(
+    public func maxThrowingSubscription<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -167,80 +242,7 @@ extension CoreDataRepository {
     ) -> AsyncThrowingStream<Value, Error> {
         AsyncThrowingStream { continuation in
             let subscription = AggregateThrowingSubscription(
-                function: .sum,
-                context: context.childContext(),
-                predicate: predicate,
-                entityDesc: entityDesc,
-                attributeDesc: attributeDesc,
-                groupBy: groupBy,
-                continuation: continuation
-            )
-            continuation.onTermination = { _ in
-                subscription.cancel()
-            }
-            subscription.manualFetch()
-        }
-    }
-
-    // MARK: Average
-
-    /// Get the average of a managed object's numeric property for all instances that satisfy the predicate.
-    @inlinable
-    public func average<Value: Numeric>(
-        predicate: NSPredicate,
-        entityDesc: NSEntityDescription,
-        attributeDesc: NSAttributeDescription,
-        groupBy: NSAttributeDescription? = nil,
-        as _: Value.Type
-    ) async -> Result<Value, CoreDataError> {
-        await Self.send(
-            function: .average,
-            context: context,
-            predicate: predicate,
-            entityDesc: entityDesc,
-            attributeDesc: attributeDesc,
-            groupBy: groupBy
-        )
-    }
-
-    /// Subscribe to the average of a managed object's numeric property for all instances that satisfy the predicate.
-    @inlinable
-    public func averageSubscription<Value: Numeric>(
-        predicate: NSPredicate,
-        entityDesc: NSEntityDescription,
-        attributeDesc: NSAttributeDescription,
-        groupBy: NSAttributeDescription? = nil,
-        as _: Value.Type
-    ) -> AsyncStream<Result<Value, CoreDataError>> {
-        AsyncStream { continuation in
-            let subscription = AggregateSubscription(
-                function: .average,
-                context: context.childContext(),
-                predicate: predicate,
-                entityDesc: entityDesc,
-                attributeDesc: attributeDesc,
-                groupBy: groupBy,
-                continuation: continuation
-            )
-            continuation.onTermination = { _ in
-                subscription.cancel()
-            }
-            subscription.manualFetch()
-        }
-    }
-
-    /// Subscribe to the average of a managed object's numeric property for all instances that satisfy the predicate.
-    @inlinable
-    public func averageThrowingSubscription<Value: Numeric>(
-        predicate: NSPredicate,
-        entityDesc: NSEntityDescription,
-        attributeDesc: NSAttributeDescription,
-        groupBy: NSAttributeDescription? = nil,
-        as _: Value.Type
-    ) -> AsyncThrowingStream<Value, Error> {
-        AsyncThrowingStream { continuation in
-            let subscription = AggregateThrowingSubscription(
-                function: .average,
+                function: .max,
                 context: context.childContext(),
                 predicate: predicate,
                 entityDesc: entityDesc,
@@ -330,11 +332,11 @@ extension CoreDataRepository {
         }
     }
 
-    // MARK: Max
+    // MARK: Sum
 
-    /// Get the max or maximum of a managed object's numeric property for all instances that satisfy the predicate.
+    /// Get the sum of a managed object's numeric property for all instances that satisfy the predicate.
     @inlinable
-    public func max<Value: Numeric>(
+    public func sum<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -342,7 +344,7 @@ extension CoreDataRepository {
         as _: Value.Type
     ) async -> Result<Value, CoreDataError> {
         await Self.send(
-            function: .max,
+            function: .sum,
             context: context,
             predicate: predicate,
             entityDesc: entityDesc,
@@ -351,10 +353,9 @@ extension CoreDataRepository {
         )
     }
 
-    /// Subscribe to the max or maximum of a managed object's numeric property for all instances that satisfy the
-    /// predicate.
+    /// Subscribe to the sum of a managed object's numeric property for all instances that satisfy the predicate.
     @inlinable
-    public func maxSubscription<Value: Numeric>(
+    public func sumSubscription<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -363,7 +364,7 @@ extension CoreDataRepository {
     ) -> AsyncStream<Result<Value, CoreDataError>> {
         AsyncStream { continuation in
             let subscription = AggregateSubscription(
-                function: .max,
+                function: .sum,
                 context: context.childContext(),
                 predicate: predicate,
                 entityDesc: entityDesc,
@@ -378,10 +379,9 @@ extension CoreDataRepository {
         }
     }
 
-    /// Subscribe to the max or maximum of a managed object's numeric property for all instances that satisfy the
-    /// predicate.
+    /// Subscribe to the sum of a managed object's numeric property for all instances that satisfy the predicate.
     @inlinable
-    public func maxThrowingSubscription<Value: Numeric>(
+    public func sumThrowingSubscription<Value: Numeric>(
         predicate: NSPredicate,
         entityDesc: NSEntityDescription,
         attributeDesc: NSAttributeDescription,
@@ -390,7 +390,7 @@ extension CoreDataRepository {
     ) -> AsyncThrowingStream<Value, Error> {
         AsyncThrowingStream { continuation in
             let subscription = AggregateThrowingSubscription(
-                function: .max,
+                function: .sum,
                 context: context.childContext(),
                 predicate: predicate,
                 entityDesc: entityDesc,

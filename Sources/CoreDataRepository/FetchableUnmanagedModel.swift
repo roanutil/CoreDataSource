@@ -1,4 +1,4 @@
-// UnmanagedReadOnlyModel.swift
+// FetchableUnmanagedModel.swift
 // CoreDataRepository
 //
 //
@@ -9,14 +9,15 @@
 import CoreData
 import Foundation
 
-/// Protocol for a value type for reading and fetchiing a ``NSManagedObject`` subclass
+/// Protocol for a value type for fetchiing a ``NSManagedObject`` subclass
 ///
 /// There are times where a single ``NSManagedObject``subclass may be accessed via multiple value types.
-/// ``UnmanagedReadOnlyModel`` provides a minimal interface for reading and fetching values from CoreData
-/// without needing to implement the full ``UnmanagedModel`` protocol.
+/// ``FetchableUnmanagedModel`` provides a minimal interface for fetching values from CoreData
+/// without other functionality.
 ///
 /// For example, for `ManagedMovie`, there are two unmanaged models, `Movie` and `MoviePlaceholder`.
-/// `MoviePlaceholder` will never create, update, or delete a corresponding instance of `ManagedMovie`. It is read only.
+/// `MoviePlaceholder` will never create, update, or delete a corresponding instance of `ManagedMovie`.
+/// It is only able to be fetched.
 /// `Movie` supports all operations against a corresponding instacnce of `ManagedMovie`.
 ///
 /// ```swift
@@ -39,15 +40,6 @@ import Foundation
 ///         )
 ///     }
 ///
-///     var managedIdUrl: URL? {
-///         get {
-///             url
-///         }
-///         set(newValue) {
-///             url = newValue
-///         }
-///     }
-///
 ///     func asManagedModel(in context: NSManagedObjectContext) throws -> ManagedMovie {
 ///         let object = ManagedMovie(context: context)
 ///         object.id = id
@@ -61,7 +53,7 @@ import Foundation
 ///     }
 /// }
 ///
-/// struct MoviePlaceholder: UnmanagedReadOnlyModel {
+/// struct MoviePlaceholder: FetchableUnmanagedModel {
 ///     let id: UUID
 ///
 ///     init(managed: ManagedMovie) throws {
@@ -69,8 +61,7 @@ import Foundation
 ///     }
 /// }
 /// ```
-public protocol UnmanagedReadOnlyModel: Equatable {
-    /// The ``NSManagedObject`` subclass `Self` corresponds to
+public protocol FetchableUnmanagedModel: Sendable {
     associatedtype ManagedModel: NSManagedObject
 
     /// Initialize of new instance of `Self` from an instance of ``ManagedModel``
@@ -80,7 +71,7 @@ public protocol UnmanagedReadOnlyModel: Equatable {
     static func managedFetchRequest() -> NSFetchRequest<ManagedModel>
 }
 
-extension UnmanagedReadOnlyModel {
+extension FetchableUnmanagedModel {
     @inlinable
     public static func managedFetchRequest() -> NSFetchRequest<ManagedModel> {
         NSFetchRequest<ManagedModel>(

@@ -1,4 +1,4 @@
-// AggregateRepositoryTests.swift
+// AggregateTests.swift
 // CoreDataRepository
 //
 //
@@ -8,44 +8,60 @@
 
 import CoreData
 import CoreDataRepository
+import Internal
 import XCTest
 
-final class AggregateRepositoryTests: CoreDataXCTestCase {
-    let fetchRequest: NSFetchRequest<ManagedMovie> = {
-        let request = Movie.managedFetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \ManagedMovie.title, ascending: true)]
+final class CoreDataRepository_AggregateTests: CoreDataXCTestCase {
+    let fetchRequest: NSFetchRequest<ManagedModel_UuidId> = {
+        let request = UnmanagedModel_UuidId.managedFetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ManagedModel_UuidId.int, ascending: true)]
         return request
     }()
 
-    let movies = [
-        Movie(id: UUID(), title: "A", releaseDate: Date(), boxOffice: 10),
-        Movie(id: UUID(), title: "B", releaseDate: Date(), boxOffice: 20),
-        Movie(id: UUID(), title: "C", releaseDate: Date(), boxOffice: 30),
-        Movie(id: UUID(), title: "D", releaseDate: Date(), boxOffice: 40),
-        Movie(id: UUID(), title: "E", releaseDate: Date(), boxOffice: 50),
+    let values = [
+        FetchableModel_UuidId.seeded(10),
+        FetchableModel_UuidId.seeded(20),
+        FetchableModel_UuidId.seeded(30),
+        FetchableModel_UuidId.seeded(40),
+        FetchableModel_UuidId.seeded(50),
     ]
-    var expectedMovies = [Movie]()
+    var expectedValues = [FetchableModel_UuidId]()
+    var objectIds = [NSManagedObjectID]()
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        expectedMovies = try repositoryContext().performAndWait {
-            _ = try self.movies.map { try $0.asManagedModel(in: repositoryContext()) }
+        let (_expectedValues, _objectIds) = try repositoryContext().performAndWait {
+            let managedMovies = try self.values
+                .map {
+                    try ManagedIdUrlModel_UuidId(fetchable: $0)
+                        .asManagedModel(in: repositoryContext())
+                }
             try self.repositoryContext().save()
-            return try self.repositoryContext().fetch(fetchRequest).map(Movie.init(managed:))
+            return try (
+                self.repositoryContext().fetch(fetchRequest).map(FetchableModel_UuidId.init(managed:)),
+                managedMovies.map(\.objectID)
+            )
         }
+        expectedValues = _expectedValues
+        objectIds = _objectIds
     }
 
     override func tearDownWithError() throws {
         try super.tearDownWithError()
-        expectedMovies = []
+        expectedValues = []
+        objectIds = []
     }
 
     func testCountSuccess() async throws {
         let result = try await repository()
-            .count(predicate: NSPredicate(value: true), entityDesc: ManagedMovie.entity(), as: Int.self)
+            .count(
+                predicate: NSPredicate(value: true),
+                entityDesc: ManagedModel_UuidId.entity(),
+                as: Int.self
+            )
         switch result {
         case let .success(value):
-            XCTAssertEqual(value, 5, "Result value (count) should equal number of movies.")
+            XCTAssertEqual(value, 5, "Result value (count) should equal number of values.")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -55,16 +71,16 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository().aggregate(
             function: .count,
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Double.self
         )
         switch result {
         case let .success(value):
-            XCTAssertEqual(value, 5, "Result value (count) should equal number of movies.")
+            XCTAssertEqual(value, 5, "Result value (count) should equal number of values.")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -74,18 +90,21 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let task = Task {
             var resultCount = 0
             let stream = try repository()
-                .countSubscription(predicate: NSPredicate(value: true), entityDesc: ManagedMovie.entity(), as: Int.self)
+                .countSubscription(
+                    predicate: NSPredicate(value: true),
+                    entityDesc: ManagedModel_UuidId.entity(),
+                    as: Int.self
+                )
             for await _count in stream {
                 let count = try _count.get()
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(count, 5, "Result value (count) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(count, 5, "Result value (count) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(count, 4, "Count should match expected value after deleting one movie.")
+                    XCTAssertEqual(count, 4, "Count should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -104,19 +123,18 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             let stream = try repository()
                 .countThrowingSubscription(
                     predicate: NSPredicate(value: true),
-                    entityDesc: ManagedMovie.entity(),
+                    entityDesc: ManagedModel_UuidId.entity(),
                     as: Int.self
                 )
             for try await count in stream {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(count, 5, "Result value (count) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(count, 5, "Result value (count) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(count, 4, "Count should match expected value after deleting one movie.")
+                    XCTAssertEqual(count, 4, "Count should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -132,16 +150,16 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     func testSumSuccess() async throws {
         let result = try await repository().sum(
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
         switch result {
         case let .success(value):
-            XCTAssertEqual(value, 150, "Result value (sum) should equal number of movies.")
+            XCTAssertEqual(value, 150, "Result value (sum) should equal number of values.")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -151,16 +169,16 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository().aggregate(
             function: .sum,
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
         switch result {
         case let .success(value):
-            XCTAssertEqual(value, 150, "Result value (sum) should equal number of movies.")
+            XCTAssertEqual(value, 150, "Result value (sum) should equal number of values.")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -171,10 +189,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().sumSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -183,12 +201,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(sum, 150, "Result value (sum) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(sum, 150, "Result value (sum) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(sum, 100, "Result value (sum) should match expected value after deleting one movie.")
+                    XCTAssertEqual(sum, 100, "Result value (sum) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -206,10 +223,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().sumThrowingSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -217,12 +234,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(sum, 150, "Result value (sum) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(sum, 150, "Result value (sum) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(sum, 100, "Result value (sum) should match expected value after deleting one movie.")
+                    XCTAssertEqual(sum, 100, "Result value (sum) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -238,10 +254,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     func testAverageSuccess() async throws {
         let result = try await repository().average(
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -250,7 +266,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 30,
-                "Result value should equal average of movies box office."
+                "Result value should equal average of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -261,10 +277,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository().aggregate(
             function: .average,
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -273,7 +289,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 30,
-                "Result value should equal average of movies box office."
+                "Result value should equal average of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -285,10 +301,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().averageSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -297,15 +313,14 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(average, 30, "Result value (average) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(average, 30, "Result value (average) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
                     XCTAssertEqual(
                         average,
                         25,
-                        "Result value (average) should match expected value after deleting one movie."
+                        "Result value (average) should match expected value after deleting one value."
                     )
                     return resultCount
                 default:
@@ -324,10 +339,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().averageThrowingSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -335,15 +350,14 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(average, 30, "Result value (average) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(average, 30, "Result value (average) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
                     XCTAssertEqual(
                         average,
                         25,
-                        "Result value (average) should match expected value after deleting one movie."
+                        "Result value (average) should match expected value after deleting one value."
                     )
                     return resultCount
                 default:
@@ -360,10 +374,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     func testMinSuccess() async throws {
         let result = try await repository().min(
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -372,7 +386,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 10,
-                "Result value should equal min of movies box office."
+                "Result value should equal min of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -383,10 +397,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository().aggregate(
             function: .min,
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -395,7 +409,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 10,
-                "Result value should equal min of movies box office."
+                "Result value should equal min of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -407,10 +421,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().minSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -419,12 +433,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(min, 10, "Result value (min) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(min, 10, "Result value (min) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(min, 10, "Result value (min) should match expected value after deleting one movie.")
+                    XCTAssertEqual(min, 10, "Result value (min) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -442,10 +455,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().minThrowingSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -453,12 +466,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(min, 10, "Result value (min) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(min, 10, "Result value (min) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(min, 10, "Result value (min) should match expected value after deleting one movie.")
+                    XCTAssertEqual(min, 10, "Result value (min) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -474,10 +486,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     func testMaxSuccess() async throws {
         let result = try await repository().max(
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -486,7 +498,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 50,
-                "Result value should equal max of movies box office."
+                "Result value should equal max of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -497,10 +509,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository().aggregate(
             function: .max,
             predicate: NSPredicate(value: true),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -509,7 +521,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 value,
                 50,
-                "Result value should equal max of movies box office."
+                "Result value should equal max of values box office."
             )
         case .failure:
             XCTFail("Not expecting failure")
@@ -521,10 +533,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().maxSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -533,12 +545,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(max, 50, "Result value (max) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(max, 50, "Result value (max) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(max, 40, "Result value (max) should match expected value after deleting one movie.")
+                    XCTAssertEqual(max, 40, "Result value (max) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -556,10 +567,10 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             var resultCount = 0
             let stream = try repository().maxThrowingSubscription(
                 predicate: NSPredicate(value: true),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 attributeDesc: XCTUnwrap(
-                    ManagedMovie.entity().attributesByName.values
-                        .first(where: { $0.name == "boxOffice" })
+                    ManagedModel_UuidId.entity().attributesByName.values
+                        .first(where: { $0.name == "decimal" })
                 ),
                 as: Decimal.self
             )
@@ -567,12 +578,11 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
                 resultCount += 1
                 switch resultCount {
                 case 1:
-                    XCTAssertEqual(max, 50, "Result value (max) should equal number of movies.")
-                    let crudRepository = try CoreDataRepository(context: repositoryContext())
-                    _ = try await crudRepository.delete(XCTUnwrap(expectedMovies.last?.url))
+                    XCTAssertEqual(max, 50, "Result value (max) should equal number of values.")
+                    try delete(managedId: XCTUnwrap(objectIds.last))
                     await Task.yield()
                 case 2:
-                    XCTAssertEqual(max, 40, "Result value (max) should match expected value after deleting one movie.")
+                    XCTAssertEqual(max, 40, "Result value (max) should match expected value after deleting one value.")
                     return resultCount
                 default:
                     XCTFail("Not expecting any values past the first two.")
@@ -589,17 +599,17 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result = try await repository()
             .count(
                 predicate: NSComparisonPredicate(
-                    leftExpression: NSExpression(forKeyPath: \ManagedMovie.title),
-                    rightExpression: NSExpression(forConstantValue: "A"),
+                    leftExpression: NSExpression(forKeyPath: \ManagedModel_UuidId.string),
+                    rightExpression: NSExpression(forConstantValue: "10"),
                     modifier: .direct,
                     type: .notEqualTo
                 ),
-                entityDesc: ManagedMovie.entity(),
+                entityDesc: ManagedModel_UuidId.entity(),
                 as: Int.self
             )
         switch result {
         case let .success(count):
-            XCTAssertEqual(count, 4, "Result value (count) should equal number of movies not titled 'A'.")
+            XCTAssertEqual(count, 4, "Result value (count) should equal number of values not titled 'A'.")
         case .failure:
             XCTFail("Not expecting failure")
         }
@@ -608,15 +618,15 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
     func testSumWithPredicate() async throws {
         let result = try await repository().sum(
             predicate: NSComparisonPredicate(
-                leftExpression: NSExpression(forKeyPath: \ManagedMovie.title),
-                rightExpression: NSExpression(forConstantValue: "A"),
+                leftExpression: NSExpression(forKeyPath: \ManagedModel_UuidId.string),
+                rightExpression: NSExpression(forConstantValue: "10"),
                 modifier: .direct,
                 type: .notEqualTo
             ),
-            entityDesc: ManagedMovie.entity(),
+            entityDesc: ManagedModel_UuidId.entity(),
             attributeDesc: XCTUnwrap(
-                ManagedMovie.entity().attributesByName.values
-                    .first(where: { $0.name == "boxOffice" })
+                ManagedModel_UuidId.entity().attributesByName.values
+                    .first(where: { $0.name == "decimal" })
             ),
             as: Decimal.self
         )
@@ -625,7 +635,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             XCTAssertEqual(
                 sum,
                 140,
-                "Result value should equal sum of movies box office that are not titled 'A'."
+                "Result value should equal sum of values box office that are not titled 'A'."
             )
         case .failure:
             XCTFail("Not expecting failure")

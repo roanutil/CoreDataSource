@@ -20,20 +20,29 @@ extension NSManagedObjectContext {
         do {
             output = try await scratchPad.perform(schedule: schedule) { try block(scratchPad) }
         } catch let error as CoreDataError {
-            await scratchPad.perform {
-                scratchPad.rollback()
+            await scratchPad.perform(schedule: schedule) {
+                scratchPad.reset()
+            }
+            await scratchPad.parent?.perform(schedule: schedule) {
+                scratchPad.parent?.rollback()
             }
             return .failure(error)
         } catch let error as CocoaError {
-            await scratchPad.perform {
-                scratchPad.rollback()
+            await scratchPad.perform(schedule: schedule) {
+                scratchPad.reset()
+            }
+            await scratchPad.parent?.perform(schedule: schedule) {
+                scratchPad.parent?.rollback()
             }
             return .failure(.cocoa(error))
-        } catch let error as NSError {
-            await scratchPad.perform {
-                scratchPad.rollback()
+        } catch {
+            await scratchPad.perform(schedule: schedule) {
+                scratchPad.reset()
             }
-            return .failure(CoreDataError.unknown(error))
+            await scratchPad.parent?.perform(schedule: schedule) {
+                scratchPad.parent?.rollback()
+            }
+            return .failure(CoreDataError.unknown(error as NSError))
         }
         return .success(output)
     }

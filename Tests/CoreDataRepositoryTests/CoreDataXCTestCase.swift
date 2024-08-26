@@ -9,6 +9,7 @@
 import CoreData
 import CoreDataRepository
 import CustomDump
+import Internal
 import XCTest
 
 class CoreDataXCTestCase: XCTestCase {
@@ -31,7 +32,16 @@ class CoreDataXCTestCase: XCTestCase {
     }
 
     override func setUpWithError() throws {
-        let container = CoreDataStack.persistentContainer
+        let stack = CoreDataStack(
+            storeName: "coredata_repository_tests",
+            type: .sqliteEphemeral,
+            container: CoreDataStack.persistentContainer(
+                storeName: "coredata_repository_tests",
+                type: .sqliteEphemeral,
+                model: .model_UuidId
+            )
+        )
+        let container = stack.container
         _container = container
         backgroundQueue.sync {
             _repositoryContext = container.newBackgroundContext()
@@ -48,39 +58,44 @@ class CoreDataXCTestCase: XCTestCase {
         _repository = nil
     }
 
-    func verify<T>(_ item: T) async throws where T: UnmanagedModel {
-        guard let url = item.managedIdUrl else {
-            XCTFail("Failed to verify item in store because it has no URL")
-            return
-        }
-
+    func verify<T>(_ item: T) async throws where T: FetchableUnmanagedModel, T: Equatable {
         let context = try repositoryContext()
-        let coordinator = try container().persistentStoreCoordinator
-        try context.performAndWait {
-            guard let objectID = coordinator.managedObjectID(forURIRepresentation: url) else {
-                XCTFail("Failed to verify item in store because no NSManagedObjectID found in viewContext from URL.")
-                return
-            }
-            var _object: NSManagedObject?
+        context.performAndWait {
+            var _managed: T.ManagedModel?
             do {
-                _object = try context.existingObject(with: objectID)
+                _managed = try context.fetch(T.managedFetchRequest()).first { try T(managed: $0) == item }
             } catch {
                 XCTFail(
-                    "Failed to verify item in store because it was not found by its NSManagedObjectID. Error: \(error.localizedDescription)"
+                    "Failed to verify item in store because fetching failed. Error: \(error.localizedDescription)"
                 )
                 return
             }
 
-            guard let object = _object else {
-                XCTFail("Failed to verify item in store because it was not found by its NSManagedObjectID")
+            guard let managed = _managed else {
+                XCTFail("Failed to verify item in store because it was not found.")
+                return
+            }
+        }
+    }
+
+    func verify<T>(_ item: T) async throws where T: ReadableUnmanagedModel, T: Equatable {
+        let context = try repositoryContext()
+        try context.performAndWait {
+            var _managed: T.ManagedModel?
+            do {
+                _managed = try item.readManaged(from: context)
+            } catch {
+                XCTFail(
+                    "Failed to verify item in store because reading it failed. Error: \(error.localizedDescription)"
+                )
                 return
             }
 
-            guard let managedItem = object as? T.ManagedModel else {
-                XCTFail("Failed to verify item in store because it failed to cast to RepoManaged type.")
+            guard let managed = _managed else {
+                XCTFail("Failed to verify item in store because it was not found.")
                 return
             }
-            XCTAssertNoDifference(item, try T(managed: managedItem))
+            try expectNoDifference(item, T(managed: managed))
         }
     }
 
@@ -93,6 +108,46 @@ class CoreDataXCTestCase: XCTestCase {
             for historyTransaction in history {
                 XCTAssertEqual(historyTransaction.author, transactionAuthor)
             }
+        }
+    }
+
+    func verifyDoesNotExist<T>(_ item: T) async throws where T: FetchableUnmanagedModel, T: Equatable {
+        let context = try repositoryContext()
+        context.performAndWait {
+            var _managed: T.ManagedModel?
+            do {
+                _managed = try context.fetch(T.managedFetchRequest()).first { try T(managed: $0) == item }
+            } catch {
+                return
+            }
+
+            if let _managed, !_managed.isDeleted {
+                XCTFail("Item does exist and is not deleted which is not expected")
+            }
+        }
+    }
+
+    func verifyDoesNotExist<T>(_ item: T) async throws where T: ReadableUnmanagedModel, T: Equatable {
+        let context = try repositoryContext()
+        context.performAndWait {
+            var _managed: T.ManagedModel?
+            do {
+                _managed = try item.readManaged(from: context)
+            } catch {
+                return
+            }
+
+            if let _managed, !_managed.isDeleted {
+                XCTFail("Item does exist and is not deleted which is not expected")
+            }
+        }
+    }
+
+    func delete(managedId: NSManagedObjectID) throws {
+        try repositoryContext().performAndWait {
+            let managed = try repositoryContext().object(with: managedId)
+            try repositoryContext().delete(managed)
+            try repositoryContext().save()
         }
     }
 }
