@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/pointfreeco/swift-custom-dump.git",
         "state": {
           "branch": null,
-          "revision": "84b30e1af72e0ffe6dfbfe39d53b8173caacf224",
-          "version": "0.10.2"
+          "revision": "0a5bff05fe01dcd513932ed338a4efad8268b803",
+          "version": "0.11.2"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/pointfreeco/xctest-dynamic-overlay",
         "state": {
           "branch": null,
-          "revision": "4af50b38daf0037cfbab15514a241224c3f62f98",
-          "version": "0.8.5"
+          "revision": "50843cbb8551db836adec2290bb4bc6bac5c1865",
+          "version": "0.9.0"
         }
       }
     ]
